@@ -74,11 +74,11 @@ fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> 
                 if ev.type_ != 4 || ev.code != 4 || ev2.type_ != 1 || ev2.value == 0 { continue }
                 let scancode = (ev.value & (!0x70000)) as u32;
 
-                println!("Read {:#?} with scancode {}", ev, scancode);
+                //println!("Read {:#?} with scancode {}", ev, scancode);
                 let cmd = commands.get(&scancode);
                 match cmd {
                     Some(binding) => {
-                        println!("{} is bound to {}", &scancode, binding);
+                        println!("Scancode {} is bound to {}", &scancode, binding);
                         use std::process::Command;
                         let mut output = Command::new("bash")
                             .arg("-c")
@@ -88,53 +88,68 @@ fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> 
                         output.wait().expect("Subprocess should exit");
                         println!("Subprocess finished.");
                     },
-                    _ => println!("{} is unbound", &scancode),
+                    _ => println!("Scancode {} is unbound", &scancode),
                 }
             }
         }
     }
 }
 
-fn main() {
-    let commands: std::collections::HashMap<u32, String> = {;
-        let s = String::from;
-        hashmap!{
-            4 => s("xdotool key Page_Up"), // scroll left
-            5 => s("xdotool key Page_Down"), // scroll right
-            6 => s("xdotool key ctrl+c"), // G8
-            7 => s("xdotool key ctrl+shift+c"), // G7
-            8 => s("i3-msg workspace next_on_output"), // G9
-            9 => s("i3-msg move workspace next_on_output"), // G10
-            10 => s("xdotool key ctrl+w"), // G11
-            11 => s("pulseaudio-ctl down"), // G12
-            12 => s("pulseaudio-ctl mute"), // G13
-            13 => s("xdotool key ctrl+z"), // G14
-            14 => s("xdotool key End"), // G15
-            15 => s("xdotool key ctrl+End"), // G16
-            16 => s("xdotool key Return"), // G17
-            17 => s("i3-msg fullscreen"), // G18
-            18 => s("xdotool key ctrl+slash t"), // G19
-            19 => s(""), // G20
-            20 => s("xdotool key alt+Left"), // G-shift + scroll left
-            21 => s("xdotool key alt+Right"), // G-shift + scroll right
-            22 => s("xdotool key ctrl+v"), // G-shift + G8
-            23 => s("xdotool key ctrl+shift+v"), // G-shift + G7
-            24 => s("i3-msg workspace prev_on_output"), // G-shift + G9
-            25 => s("i3-msg move workspace prev_on_output"), // G-shift + G10
-            26 => s("i3-msg kill"), // G-shift + G11
-            27 => s("pulseaudio-ctl up"), // G-shift + G12
-            28 => s("pulseaudio-ctl mute"), // G-shift + G13
-            29 => s("xdotool key ctrl+shift+z ctrl+y"), // G-shift + G14
-            30 => s("xdotool key Home"), // G-shift + G15
-            31 => s("xdotool key ctrl+Home"), // G-shift + G16
-            32 => s("xdotool key Escape"), // G-shift + G17
-            33 => s("i3-msg fullscreen"), // G-shift + G18
-            34 => s(""), // G-shift + G19
-            35 => s(""), // G-shift + G20
-        }
+fn build_default_commands() -> std::collections::HashMap<u32, String> {
+    let s = String::from;
+    let commands: std::collections::HashMap<u32, &str> = hashmap! {
+        4 => "xdotool key Page_Up",
+        5 => "xdotool key Page_Down",
+        6 => "xdotool key ctrl+c",
+        7 => "xdotool key ctrl+shift+c",
+        8 => "i3-msg workspace next_on_output",
+        9 => "i3-msg move workspace next_on_output",
+        10 => "xdotool key ctrl+w",
+        11 => "pulseaudio-ctl down",
+        12 => "pulseaudio-ctl mute",
+        13 => "xdotool key ctrl+z",
+        14 => "xdotool key End",
+        15 => "xdotool key ctrl+End",
+        16 => "xdotool key Return",
+        17 => "i3-msg fullscreen",
+        18 => "xdotool key ctrl+slash t",
+        20 => "xdotool key alt+Left",
+        21 => "xdotool key alt+Right",
+        22 => "xdotool key ctrl+v",
+        23 => "xdotool key ctrl+shift+v",
+        24 => "i3-msg workspace prev_on_output",
+        25 => "i3-msg move workspace prev_on_output",
+        26 => "i3-msg kill",
+        27 => "pulseaudio-ctl up",
+        28 => "pulseaudio-ctl mute",
+        29 => "xdotool key ctrl+shift+z ctrl+y",
+        30 => "xdotool key Home",
+        31 => "xdotool key ctrl+Home",
+        32 => "xdotool key Escape",
+        33 => "i3-msg fullscreen",
     };
+    commands.iter()
+        .map(|(&k, &v)| (k, s(v)))
+        .collect()
+}
 
-    // TODO: Load configuration from dotfile?
+fn load_commands_from_dotfile() -> Option<Vec<(u32, String)>> {
+    // TODO: Load configuration from dotfile
+    None
+}
+
+fn main() {
+
+    let mut commands = build_default_commands();
+
+    match load_commands_from_dotfile() {
+        Some(dotcommands) => {
+            for (sc, cmd) in dotcommands {
+                commands.insert(sc, cmd);
+            }
+        },
+        None => (),
+    }
 
     run(commands).expect("Expected successful run");
 }
