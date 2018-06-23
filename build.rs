@@ -13,7 +13,7 @@ fn main() {
 
     if !out_file.exists() {
         bindgen::Builder::default()
-            .header("src/linux-input.h")
+            .header("src/linput/linux-input.h")
             .generate()
             .expect("Unable to generate bindings")
             .write_to_file(out_file)
