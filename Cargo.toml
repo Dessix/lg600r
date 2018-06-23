@@ -1,0 +1,16 @@
+[package]
+name = "lg600r"
+version = "0.1.0"
+authors = ["Zoey <Dessix@Dessix.net>"]
+
+[dependencies]
+maplit = "1.0.1"
+nix = "*"
+
+[build-dependencies]
+bindgen = "*"
+
+[features]
+default = []
+
+idebuild = []
