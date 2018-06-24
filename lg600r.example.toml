@@ -1,0 +1,25 @@
+[bindings]
+04 = "amixer -q -D pulse sset Master 1%-"
+17 = "i3-msg move up"
+12 = "amixer -q -D pulse sset Master 1%+"
+11 = "i3-msg move left"
+07 = "i3-msg move down"
+28 = "i3-msg move right"
+
+30 = "i3-msg fullscreen"
+31 = "i3-msg focus up"
+32 = "i3-msg focus parent"
+33 = "i3-msg focus left"
+34 = "i3-msg focus down"
+35 = "i3-msg focus right"
+
+36 = "i3-msg move workspace prev_on_output"
+38 = "i3-msg move workspace next_on_output"
+39 = "i3-msg workspace prev_on_output"
+46 = "i3-msg workspace next_on_output"
+
+80 = "amixer -q -D pulse sset Master 5%-"
+79 = "amixer -q -D pulse sset Master 5%+"
+
+82 = "i3-msg kill"
+81 = "xdotool key ctrl+q"

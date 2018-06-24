@@ -2,6 +2,8 @@
 #![feature(const_vec_new)]
 
 #[macro_use] extern crate maplit;
+extern crate toml;
+extern crate xdg;
 
 use std::fs;
 use std::io;
@@ -9,6 +11,7 @@ use std::mem;
 use std::os::unix::prelude::AsRawFd;
 use std::slice;
 
+mod config;
 mod linput;
 
 fn find_g600() -> io::Result<std::path::PathBuf> {
@@ -29,8 +32,6 @@ fn find_g600() -> io::Result<std::path::PathBuf> {
 
 fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> {
     println!("Starting G600 Linux controller.\n");
-
-    //ioctl_write_int_bad!(ioctlwriteint, EVIOCGRAB, 1);
     let g600path = find_g600().expect("Error: Couldn't find G600 input device.");
     {
         let f = match fs::File::open(g600path.clone()) {
@@ -98,59 +99,40 @@ fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> 
 fn build_default_commands() -> std::collections::HashMap<u32, String> {
     let s = String::from;
     let commands: std::collections::HashMap<u32, &str> = hashmap! {
-        4 => "xdotool key Page_Up",
-        5 => "xdotool key Page_Down",
-        6 => "xdotool key ctrl+c",
-        7 => "xdotool key ctrl+shift+c",
-        8 => "i3-msg workspace next_on_output",
-        9 => "i3-msg move workspace next_on_output",
-        10 => "xdotool key ctrl+w",
-        11 => "pulseaudio-ctl down",
-        12 => "pulseaudio-ctl mute",
-        13 => "xdotool key ctrl+z",
-        14 => "xdotool key End",
-        15 => "xdotool key ctrl+End",
-        16 => "xdotool key Return",
-        17 => "i3-msg fullscreen",
-        18 => "xdotool key ctrl+slash t",
-        20 => "xdotool key alt+Left",
-        21 => "xdotool key alt+Right",
-        22 => "xdotool key ctrl+v",
-        23 => "xdotool key ctrl+shift+v",
-        24 => "i3-msg workspace prev_on_output",
-        25 => "i3-msg move workspace prev_on_output",
-        26 => "i3-msg kill",
-        27 => "pulseaudio-ctl up",
-        28 => "pulseaudio-ctl mute",
-        29 => "xdotool key ctrl+shift+z ctrl+y",
-        30 => "xdotool key Home",
-        31 => "xdotool key ctrl+Home",
-        32 => "xdotool key Escape",
-        33 => "i3-msg fullscreen",
+        // default commands, applied to all layouts
     };
     commands.iter()
         .map(|(&k, &v)| (k, s(v)))
         .collect()
 }
 
-fn load_commands_from_dotfile() -> Option<Vec<(u32, String)>> {
-    // TODO: Load configuration from dotfile
-    None
-}
-
-fn main() {
-
+fn run_with_dotfile(path: ::std::path::PathBuf) -> () {
+    assert!(path.exists());
     let mut commands = build_default_commands();
 
-    match load_commands_from_dotfile() {
+    match ::config::load_commands_from_dotfile(&path) {
         Some(dotcommands) => {
-            for (sc, cmd) in dotcommands {
-                commands.insert(sc, cmd);
+            for (sc, cmd) in &dotcommands {
+                commands.insert(*sc, cmd.clone());
             }
+            println!("Loaded {} commands from dotfile.", dotcommands.len());
         },
         None => (),
     }
 
     run(commands).expect("Expected successful run");
+}
+
+fn main() {
+    match config::find_dotfile() {
+        Some(dot) => {
+            println!("Using config file at {}", dot.to_string_lossy());
+            run_with_dotfile(dot);
+        },
+        _ => {
+            println!("No configuration found.");
+            println!("Create a config.toml in either ~/.config/lg600r or ~/.lg600r");
+        },
+    }
 }
 
