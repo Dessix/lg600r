@@ -1,0 +1,1 @@
+SUBSYSTEM=="input", SUBSYSTEMS=="input", ATTRS{name}=="Logitech Gaming Mouse G600", ACTION=="add", GROUP="YOURUSERNAME", MODE="777"
