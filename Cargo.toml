@@ -4,12 +4,13 @@ version = "0.1.0"
 authors = ["Zoey <Dessix@Dessix.net>"]
 
 [dependencies]
-maplit = "1.0.1"
-toml = "0.4.6"
-xdg = "^2.1"
+enigo = "~0.0.13"
+maplit = "^1.0.1"
+toml = "^0.5.1"
+xdg = "^2"
 
 [build-dependencies]
-bindgen = "*"
+bindgen = "^0.49.3"
 
 [features]
 default = []
