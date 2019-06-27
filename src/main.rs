@@ -1,18 +1,19 @@
 #![feature(nll)]
 #![feature(const_vec_new)]
 
+extern crate enigo;
 #[macro_use] extern crate maplit;
 extern crate toml;
 extern crate xdg;
 
 use std::fs;
 use std::io;
-use std::mem;
-use std::os::unix::prelude::AsRawFd;
-use std::slice;
+use std::cell::RefCell;
+use std::collections::{HashMap, BTreeMap};
 
 mod config;
 mod linput;
+mod keyboard_watcher;
 
 fn find_g600() -> io::Result<std::path::PathBuf> {
     const KPREFIX: &'static str = "usb-Logitech_Gaming_Mouse_G600_";
@@ -30,56 +31,35 @@ fn find_g600() -> io::Result<std::path::PathBuf> {
     Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Failed to find g600"))
 }
 
-fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> {
+fn format_gkey(gkey: u32) -> String {
+    match gkey {
+        k if k >= 100 => format!("G^{}", &(k - 100)),
+        k => format!("G{}", &k),
+    }
+}
+
+fn run(commands: std::collections::HashMap<u32, (u32, String)>) -> Result<(), Box<dyn (::std::error::Error)>> {
     println!("Starting G600 Linux controller.\n");
     let g600path = find_g600().expect("Error: Couldn't find G600 input device.");
-    {
-        let f = match fs::File::open(g600path.clone()) {
-            Ok(f) => f,
-            Err(e) => {
-                let msg = format!(
-                    "Error: Couldn't open \"{}\" for reading; reason: {}",
-                    g600path.into_os_string().to_str().unwrap(), e);
-                return Err(std::io::Error::new(std::io::ErrorKind::NotFound, msg))
-            },
-        };
-
-        unsafe {
-            let fd: std::os::raw::c_int = f.as_raw_fd();
-            let res = linput::ioctl(fd, linput::_EVIOCGRAB, 1);
-            assert_eq!(res, 0);
-        }
-
-        {
-            use std::io::BufReader;
-            use std::io::prelude::*;
-            let event_size = mem::size_of::<linput::input_event>();
-            let mut fb = BufReader::with_capacity(64 * event_size, f);
-
+    let f = fs::File::open(g600path.clone())
+        .map_err(|e| {
+            let msg = format!(
+                "Error: Couldn't open \"{}\" for reading; reason: {}",
+                g600path.into_os_string().to_str().unwrap(), e);
+            Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, msg))
+        })?;
+    let exit = RefCell::new(false);
+    keyboard_watcher::KeyboardWatcher::create(f)
+        .map_err(|err| {
+            Box::new(std::io::Error::new(::std::io::ErrorKind::PermissionDenied, err)).into()
+        })
+        .and_then(|mut watcher| {
             println!("G600 controller started successfully.\n");
-            let mut ev: linput::input_event = unsafe { mem::zeroed() };
-            let mut ev2: linput::input_event = unsafe { mem::zeroed() };
-            loop {
-                unsafe {
-                    let event_slice = slice::from_raw_parts_mut(
-                        &mut ev as *mut _ as *mut u8,
-                        event_size
-                    );
-                    let event_slice2 = slice::from_raw_parts_mut(
-                        &mut ev2 as *mut _ as *mut u8,
-                        event_size
-                    );
-                    fb.read_exact(event_slice)
-                        .and_then(|_| fb.read_exact(event_slice2))
-                }?;
-                if ev.type_ != 4 || ev.code != 4 || ev2.type_ != 1 || ev2.value == 0 { continue }
-                let scancode = (ev.value & (!0x70000)) as u32;
-
-                //println!("Read {:#?} with scancode {}", ev, scancode);
+            watcher.watch(|scancode, _pressed| {
                 let cmd = commands.get(&scancode);
                 match cmd {
-                    Some(binding) => {
-                        println!("Scancode {} is bound to {}", &scancode, binding);
+                    Some((gkey, binding)) => {
+                        println!("{} (Scancode {}) is bound to {}", format_gkey(*gkey), &scancode, binding);
                         use std::process::Command;
                         let mut output = Command::new("bash")
                             .arg("-c")
@@ -91,43 +71,59 @@ fn run(commands: std::collections::HashMap<u32, String>) -> std::io::Result<()> 
                     },
                     _ => println!("Scancode {} is unbound", &scancode),
                 }
-            }
-        }
-    }
+            }, &exit)?;
+            Ok(())
+        })
 }
 
 fn build_default_commands() -> std::collections::HashMap<u32, String> {
-    let s = String::from;
     let commands: std::collections::HashMap<u32, &str> = hashmap! {
         // default commands, applied to all layouts
     };
     commands.iter()
-        .map(|(&k, &v)| (k, s(v)))
+        .map(|(&k, &v)| (k, String::from(v)))
         .collect()
 }
 
-fn run_with_dotfile(path: ::std::path::PathBuf) -> () {
+fn run_with_dotfile(path: ::std::path::PathBuf) -> Result<(), Box<dyn (::std::error::Error)>> {
     assert!(path.exists());
-    let mut commands = build_default_commands();
 
-    match ::config::load_commands_from_dotfile(&path) {
-        Some(dotcommands) => {
+    ::config::load_configuration_from_dotfile(&path)
+        .map(|config::Configuration { bindings: dotcommands, scancodes }| {
+            let mut commands = build_default_commands();
             for (sc, cmd) in &dotcommands {
                 commands.insert(*sc, cmd.clone());
             }
-            println!("Loaded {} commands from dotfile.", dotcommands.len());
-        },
-        None => (),
-    }
-
-    run(commands).expect("Expected successful run");
+            println!(
+                "Loaded {} commands and {} scancode mappings from dotfile.",
+                dotcommands.len(),
+                scancodes.len(),
+            );
+            let scancodes_by_gkey =
+                scancodes.iter().cloned().collect::<BTreeMap<_,_>>();
+            commands.iter()
+                .map(|(gkey, command)| {
+                    if let Some(&scancode) = scancodes_by_gkey.get(&gkey) {
+                        (scancode, (*gkey, command.clone()))
+                    } else {
+                        eprintln!("GKey {} not mapped to scancode; using as scancode", &gkey);
+                        (*gkey, (*gkey, command.clone()))
+                    }
+                })
+                .collect::<HashMap<u32, (u32, String)>>()
+        })
+        .and_then(|commands| {
+            run(commands)
+        })
 }
 
 fn main() {
     match config::find_dotfile() {
         Some(dot) => {
             println!("Using config file at {}", dot.to_string_lossy());
-            run_with_dotfile(dot);
+            if let Err(e) = run_with_dotfile(dot) {
+                eprintln!("{}", &e);
+            }
         },
         _ => {
             println!("No configuration found.");

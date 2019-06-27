@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Zoey <Dessix@Dessix.net>"]
 
 [dependencies]
+dirs = "^2.0.1"
 enigo = "~0.0.13"
 maplit = "^1.0.1"
 toml = "^0.5.1"

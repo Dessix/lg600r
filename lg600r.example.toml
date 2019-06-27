@@ -1,25 +1,61 @@
 [bindings]
-04 = "amixer -q -D pulse sset Master 1%-"
-17 = "i3-msg move up"
-12 = "amixer -q -D pulse sset Master 1%+"
-11 = "i3-msg move left"
-07 = "i3-msg move down"
-28 = "i3-msg move right"
+109 = "amixer -q -D pulse sset Master 1%-"
+110 = "i3-msg move up"
+111 = "amixer -q -D pulse sset Master 1%+"
+112 = "i3-msg move left"
+113 = "i3-msg move down"
+114 = "i3-msg move right"
 
-30 = "i3-msg fullscreen"
-31 = "i3-msg focus up"
-32 = "i3-msg focus parent"
-33 = "i3-msg focus left"
-34 = "i3-msg focus down"
-35 = "i3-msg focus right"
+009 = "i3-msg fullscreen"
+010 = "i3-msg focus up"
+011 = "i3-msg focus parent"
+012 = "i3-msg focus left"
+013 = "i3-msg focus down"
+014 = "i3-msg focus right"
 
-36 = "i3-msg move workspace prev_on_output"
-38 = "i3-msg move workspace next_on_output"
-39 = "i3-msg workspace prev_on_output"
-46 = "i3-msg workspace next_on_output"
+015 = "i3-msg move workspace prev_on_output"
+017 = "i3-msg move workspace next_on_output"
+018 = "i3-msg workspace prev_on_output"
+020 = "i3-msg workspace next_on_output"
 
-80 = "amixer -q -D pulse sset Master 5%-"
-79 = "amixer -q -D pulse sset Master 5%+"
+104 = "amixer -q -D pulse sset Master 5%-"
+105 = "amixer -q -D pulse sset Master 5%+"
 
-82 = "i3-msg kill"
-81 = "xdotool key ctrl+q"
+107 = "i3-msg kill"
+108 = "xdotool key ctrl+q"
+
+
+# g-shift is mapped to the original g-number plus 100
+[scancodes]
+# non-shifted keys
+007 = 8
+008 = 26
+009 = 30
+010 = 31
+011 = 32
+012 = 33
+013 = 34
+014 = 35
+015 = 36
+016 = 37
+017 = 38
+018 = 39
+019 = 45
+020 = 46
+# g-shifted keys
+104 = 80 # G-shift Backward
+105 = 79 # G-shift Forward
+107 = 81
+108 = 82
+109 = 4
+110 = 17
+111 = 12
+112 = 11
+113 = 7
+114 = 28
+115 = 24
+116 = 13
+117 = 10
+118 = 6
+119 = 25
+120 = 19
