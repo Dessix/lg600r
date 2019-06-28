@@ -3,7 +3,6 @@ extern crate xdg;
 extern crate dirs;
 
 use super::xdo;
-use config::BindingType::EmulateMouse;
 
 const CONFIG_NAME: &str = "config.toml";
 
@@ -65,16 +64,13 @@ fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
 fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
     // TODO: This is a total mess; figure out toml/serde support
     use toml::Value as Toml;
-    println!("Parsing toml...");
     let t: Toml = toml::from_str(tomlstr)?;
-    println!("Parsed toml...");
     let tbl = t.as_table().unwrap();
     let mut cfg = Configuration {
         bindings: vec![],
         scancodes: vec![],
     };
     for (k, v) in tbl {
-        println!("k: {}", &k);
         match k.as_ref() {
             "bindings" => { // This could occur in the file multiple times-- but why?
                 if let Toml::Table(items) = v {

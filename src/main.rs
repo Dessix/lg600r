@@ -12,7 +12,7 @@ extern crate libc;
 use std::fs;
 use std::io;
 use std::cell::RefCell;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::BTreeMap;
 use config::BindingType;
 
 mod config;
@@ -81,7 +81,7 @@ fn run(commands: std::collections::BTreeMap<u32, (u32, BindingType)>, scancodes_
                                 output.wait().expect("Subprocess should exit");
                                 println!("Subprocess finished.");
                             },
-                            (BindingType::Command(cmd), false) => (),
+                            (BindingType::Command(_), false) => (),
                             (BindingType::EmulateMouse(button), pressed) => {
                                 if pressed {
                                     xdm.mouse_down(*button);
