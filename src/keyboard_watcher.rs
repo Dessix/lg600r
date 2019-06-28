@@ -33,23 +33,28 @@ impl KeyboardWatcher {
         let event_size = mem::size_of::<linput::input_event>();
         let mut fb = BufReader::with_capacity(64 * event_size, &mut self.stream_handle);
 
-        let mut ev: linput::input_event = unsafe { mem::zeroed() };
-        let mut ev2: linput::input_event = unsafe { mem::zeroed() };
         loop {
+            let mut ev: linput::input_event = unsafe { mem::zeroed() };
+            let mut ev2: linput::input_event = unsafe { mem::zeroed() };
             unsafe {
                 let event_slice = slice::from_raw_parts_mut(
                     &mut ev as *mut _ as *mut u8,
                     event_size
                 );
+                fb.read_exact(event_slice)
+            }?;
+            // Filter to type: EV_MSC, code: MSC_SCAN
+            // The following entry after MSC_SCAN is guaranteed the key event in question
+            if ev.type_ != 4 || ev.code != 4 { continue }
+            unsafe {
                 let event_slice2 = slice::from_raw_parts_mut(
                     &mut ev2 as *mut _ as *mut u8,
                     event_size
                 );
-                fb.read_exact(event_slice)
-                    .and_then(|_| fb.read_exact(event_slice2))
+                fb.read_exact(event_slice2)
             }?;
-            if ev.type_ != 4 || ev.code != 4 || ev2.type_ != 1 { continue }
-            let pressed = ev2.value == 0;
+//            println!("\n{:?}\n  {:?}", &ev, &ev2);
+            let pressed = ev2.value != 0;
             let scancode = (ev.value & (!0x70000)) as u32;
 
             //println!("Read {:#?} with scancode {}", ev, scancode);

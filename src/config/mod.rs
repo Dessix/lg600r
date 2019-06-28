@@ -2,6 +2,8 @@ extern crate toml;
 extern crate xdg;
 extern crate dirs;
 
+use super::xdo;
+use config::BindingType::EmulateMouse;
 
 const CONFIG_NAME: &str = "config.toml";
 
@@ -27,8 +29,37 @@ pub fn find_dotfile() -> Option<::std::path::PathBuf> {
 
 #[derive(Debug)]
 pub struct Configuration {
-    pub bindings: Vec<(u32, String)>,
+    pub bindings: Vec<(u32, BindingType)>,
     pub scancodes: Vec<(u32, u32)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum BindingType {
+    Command(String),
+    EmulateKey(xdo::Key),
+    EmulateMouse(u8),
+    KeySequence(String),
+}
+
+fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
+    let gkey = gkey.as_str().parse::<u32>().unwrap();
+    let binding = match token {
+        toml::value::Value::String(s) => {
+            BindingType::Command(s.clone())
+        },
+        toml::value::Value::Table(table) => {
+            match table.get("type").unwrap().as_str().unwrap() {
+                "mouse" => {
+                    let button = table.get("button").unwrap().as_integer().unwrap();
+                    BindingType::EmulateMouse(button as u8)
+                },
+                _ => unreachable!()
+            }
+        },
+        _ => unreachable!()
+    };
+
+    (gkey, binding)
 }
 
 fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
@@ -47,11 +78,8 @@ fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<
         match k.as_ref() {
             "bindings" => { // This could occur in the file multiple times-- but why?
                 if let Toml::Table(items) = v {
-                    let binditems: Vec<(u32, String)> = items.into_iter()
-                        .map(|(x, y)| (
-                            x.as_str().parse::<u32>().unwrap(),
-                            String::from(y.as_str().unwrap())
-                        ))
+                    let binditems: Vec<(u32, BindingType)> = items.into_iter()
+                        .map(|(x, y)| parse_binding(&x, y))
                         .collect();
                     for bindpair in binditems {
                         cfg.bindings.push(bindpair)
