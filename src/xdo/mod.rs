@@ -92,7 +92,7 @@ pub enum Key {
     /// keyboard layout dependent key
     Layout(char),
     /// raw keycode eg 0x38
-    Raw(u16)
+    Raw(u16),
 }
 
 pub trait KeyboardControllable {

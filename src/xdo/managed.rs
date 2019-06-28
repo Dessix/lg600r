@@ -185,8 +185,8 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         return Cow::Owned(format!("U{:X}", c as u32));
     }
     #[allow(deprecated)]
-        // I mean duh, we still need to support deprecated keys until they're removed
-        Cow::Borrowed(match key {
+    // I mean duh, we still need to support deprecated keys until they're removed
+    Cow::Borrowed(match key {
         Key::Alt => "Alt",
         Key::Backspace => "BackSpace",
         Key::CapsLock => "CapsLock",

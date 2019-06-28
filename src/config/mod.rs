@@ -1,6 +1,6 @@
+extern crate dirs;
 extern crate toml;
 extern crate xdg;
-extern crate dirs;
 
 use super::xdo;
 
@@ -10,19 +10,26 @@ pub fn find_dotfile() -> Option<::std::path::PathBuf> {
     // Priorities (highest first):
     //XDG style, e.g.: ~/.config/lg600r/config.toml
     //~/.dotfile, e.g.: ~/.lg600r/config.toml
-    xdg::BaseDirectories::with_prefix("lg600r").ok()
+    xdg::BaseDirectories::with_prefix("lg600r")
+        .ok()
         .and_then(|basedirs| {
-            basedirs.find_config_file(CONFIG_NAME)
-                .and_then(|cfg| {
-                    if cfg.exists() { Some(cfg) } else { None }
-                })
+            basedirs.find_config_file(CONFIG_NAME).and_then(|cfg| {
+                if cfg.exists() {
+                    Some(cfg)
+                } else {
+                    None
+                }
+            })
         })
         .or_else(|| {
-            dirs::home_dir()
-                .and_then(|home| {
-                    let dotpath = home.join(".lg600r").join(CONFIG_NAME);
-                    if dotpath.exists() { Some(dotpath) } else { None }
-                })
+            dirs::home_dir().and_then(|home| {
+                let dotpath = home.join(".lg600r").join(CONFIG_NAME);
+                if dotpath.exists() {
+                    Some(dotpath)
+                } else {
+                    None
+                }
+            })
         })
 }
 
@@ -43,25 +50,23 @@ pub enum BindingType {
 fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
     let gkey = gkey.as_str().parse::<u32>().unwrap();
     let binding = match token {
-        toml::value::Value::String(s) => {
-            BindingType::Command(s.clone())
-        },
-        toml::value::Value::Table(table) => {
-            match table.get("type").unwrap().as_str().unwrap() {
-                "mouse" => {
-                    let button = table.get("button").unwrap().as_integer().unwrap();
-                    BindingType::EmulateMouse(button as u8)
-                },
-                _ => unreachable!()
+        toml::value::Value::String(s) => BindingType::Command(s.clone()),
+        toml::value::Value::Table(table) => match table.get("type").unwrap().as_str().unwrap() {
+            "mouse" => {
+                let button = table.get("button").unwrap().as_integer().unwrap();
+                BindingType::EmulateMouse(button as u8)
             }
+            _ => unreachable!(),
         },
-        _ => unreachable!()
+        _ => unreachable!(),
     };
 
     (gkey, binding)
 }
 
-fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
+fn parse_config_from_toml_string(
+    tomlstr: &String,
+) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
     // TODO: This is a total mess; figure out toml/serde support
     use toml::Value as Toml;
     let t: Toml = toml::from_str(tomlstr)?;
@@ -72,9 +77,11 @@ fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<
     };
     for (k, v) in tbl {
         match k.as_ref() {
-            "bindings" => { // This could occur in the file multiple times-- but why?
+            "bindings" => {
+                // This could occur in the file multiple times-- but why?
                 if let Toml::Table(items) = v {
-                    let binditems: Vec<(u32, BindingType)> = items.into_iter()
+                    let binditems: Vec<(u32, BindingType)> = items
+                        .into_iter()
                         .map(|(x, y)| parse_binding(&x, y))
                         .collect();
                     for bindpair in binditems {
@@ -83,14 +90,14 @@ fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<
                 } else {
                     assert!(false);
                 }
-            },
+            }
             "scancodes" => {
                 if let Toml::Table(items) = v {
-                    let scancodepairs: Vec<(u32, u32)> = items.into_iter()
-                        .map(|(x, y): (&String, &toml::Value)| (
-                            x.parse::<u32>().unwrap(),
-                            y.as_integer().unwrap() as u32,
-                        ))
+                    let scancodepairs: Vec<(u32, u32)> = items
+                        .into_iter()
+                        .map(|(x, y): (&String, &toml::Value)| {
+                            (x.parse::<u32>().unwrap(), y.as_integer().unwrap() as u32)
+                        })
                         .collect();
                     for codepair in scancodepairs {
                         cfg.scancodes.push(codepair)
@@ -98,10 +105,10 @@ fn parse_config_from_toml_string(tomlstr: &String) -> Result<Configuration, Box<
                 } else {
                     assert!(false);
                 }
-            },
+            }
             _ => (), // ignore other tokens
         }
-    };
+    }
     Ok(cfg)
 }
 
@@ -128,8 +135,9 @@ fn load_dotfile_contents(dotfilepath: &::std::path::Path) -> ::std::io::Result<S
     Ok(contents)
 }
 
-pub fn load_configuration_from_dotfile(dotfilepath: &::std::path::Path) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
+pub fn load_configuration_from_dotfile(
+    dotfilepath: &::std::path::Path,
+) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
     let contents = load_dotfile_contents(dotfilepath)?;
     parse_config_from_toml_string(&contents)
 }
-
