@@ -9,12 +9,16 @@ extern crate xdg;
 #[macro_use]
 extern crate serde_derive;
 extern crate libc;
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
 
 use config::BindingType;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
+use xdo::KeyboardControllable;
 
 mod config;
 mod keyboard_watcher;
@@ -107,6 +111,13 @@ fn run(
                                         xdm.mouse_down(*button);
                                     } else {
                                         xdm.mouse_up(*button);
+                                    }
+                                }
+                                (BindingType::EmulateKey(key), pressed) => {
+                                    if pressed {
+                                        xdm.key_down(*key);
+                                    } else {
+                                        xdm.key_up(*key);
                                     }
                                 }
                                 _ => {}

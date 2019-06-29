@@ -23,7 +23,7 @@
 
 pub mod managed;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, ToString)]
 pub enum Key {
     /// alt key on Linux and Windows (option key on macOS)
     Alt,

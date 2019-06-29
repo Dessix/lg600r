@@ -56,6 +56,18 @@ fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
                 let button = table.get("button").unwrap().as_integer().unwrap();
                 BindingType::EmulateMouse(button as u8)
             }
+            "keyboard" => {
+                let source_str = table.get("key").unwrap().as_str().unwrap();
+                let key: Result<xdo::Key, _> = std::str::FromStr::from_str(source_str);
+                let key = match key {
+                    Ok(key) => key,
+                    Err(e) => {
+                        eprintln!("Failed to parse {} as a key; err: {}", source_str, &e);
+                        panic!()
+                    }
+                };
+                BindingType::EmulateKey(key)
+            }
             _ => unreachable!(),
         },
         _ => unreachable!(),
