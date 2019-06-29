@@ -131,11 +131,14 @@ fn test_parse_config() -> () {
         [bindings]
         12 = "tadah"
         09 = "wooo"
+        113 = { type = "mouse", button = 9 }
+        115 = { type = "keyboard", key = "F1" }
     "#;
     let res = parse_config_from_toml_string(&String::from(input)).expect("Must pass");
-    // Note that table order is by key rather than file ordering
-    assert_eq!(res.bindings[0], (9u32, String::from("wooo")));
-    assert_eq!(res.bindings[1], (12u32, String::from("tadah")));
+    assert_eq!(res.bindings[0], (9u32, BindingType::Command("wooo".to_string())));
+    assert_eq!(res.bindings[1], (113u32, BindingType::EmulateMouse(9)));
+    assert_eq!(res.bindings[2], (115u32, BindingType::EmulateKey(::xdo::Key::F1)));
+    assert_eq!(res.bindings[3], (12u32, BindingType::Command("tadah".to_string())));
 }
 
 fn load_dotfile_contents(dotfilepath: &::std::path::Path) -> ::std::io::Result<String> {
