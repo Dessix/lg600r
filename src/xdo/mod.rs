@@ -49,6 +49,30 @@ pub enum Key {
     F11,
     /// F12 key
     F12,
+    /// F13 key
+    F13,
+    /// F14 key
+    F14,
+    /// F15 key
+    F15,
+    /// F16 key
+    F16,
+    /// F17 key
+    F17,
+    /// F18 key
+    F18,
+    /// F19 key
+    F19,
+    /// F20 key
+    F20,
+    /// F21 key
+    F21,
+    /// F22 key
+    F22,
+    /// F23 key
+    F23,
+    /// F24 key
+    F24,
     /// F2 key
     F2,
     /// F3 key
