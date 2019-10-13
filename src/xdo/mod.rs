@@ -95,6 +95,8 @@ pub enum Key {
     LeftArrow,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
+    Super,
+    Hyper,
     /// option key on macOS (alt key on Linux and Windows)
     Option,
     /// page down key

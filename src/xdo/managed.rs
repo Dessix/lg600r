@@ -234,6 +234,8 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         Key::UpArrow => "Up",
 
         Key::Meta => "Meta",
+        Key::Super => "Super",
+        Key::Hyper => "Hyper",
     })
 }
 impl KeyboardControllable for XdoManaged {

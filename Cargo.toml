@@ -4,18 +4,18 @@ version = "0.1.0"
 authors = ["Zoey <Dessix@Dessix.net>"]
 
 [dependencies]
-dirs = "^2.0.1"
-maplit = "^1.0.1"
-toml = "^0.5.1"
-xdg = "^2"
-serde = "^1.0.94"
-serde_derive = "^1.0.94"
-libc = "~0.2.58"
-strum = "^0.15.0"
-strum_macros = "^0.15.0"
+dirs = "^2.0.2"
+maplit = "^1.0.2"
+toml = "^0.5.3"
+xdg = "^2.2"
+serde = "^1.0.101"
+serde_derive = "^1.0.101"
+libc = "^0.2.62"
+strum = "^0.16.0"
+strum_macros = "^0.16.0"
 
 [build-dependencies]
-bindgen = "^0.49.3"
+bindgen = "~0.51.1"
 
 [features]
 default = []
