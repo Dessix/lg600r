@@ -95,13 +95,13 @@ pub enum Key {
     LeftArrow,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
-    #[serde(rename="Super_L", alias="SuperL", alias="Super")]
+    #[serde(rename = "Super_L", alias = "SuperL", alias = "Super")]
     SuperL,
-    #[serde(rename="Super_R", alias="SuperR")]
+    #[serde(rename = "Super_R", alias = "SuperR")]
     SuperR,
-    #[serde(rename="Hyper_L", alias="HyperL", alias="Hyper")]
+    #[serde(rename = "Hyper_L", alias = "HyperL", alias = "Hyper")]
     HyperL,
-    #[serde(rename="Hyper_R", alias="HyperR")]
+    #[serde(rename = "Hyper_R", alias = "HyperR")]
     HyperR,
     /// option key on macOS (alt key on Linux and Windows)
     Option,
@@ -128,8 +128,8 @@ pub enum Key {
 }
 
 mod formatting_impls {
-    use std::fmt::{Display, Debug, Formatter, Error};
     use super::Key;
+    use std::fmt::{Debug, Display, Error, Formatter};
 
     impl Display for Key {
         fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -151,11 +151,9 @@ mod formatting_impls {
         type Err = Box<dyn std::error::Error>;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
-            serde_json::from_value(serde_json::Value::String(s.to_string()))
-                .map_err(|e| e.into())
+            serde_json::from_value(serde_json::Value::String(s.to_string())).map_err(|e| e.into())
         }
     }
-
 }
 
 pub trait KeyboardControllable {

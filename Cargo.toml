@@ -12,6 +12,7 @@ xdg = "^2.2"
 serde = "^1.0.101"
 serde_derive = "^1.0.101"
 serde_json = "^1.0.41"
+serde-value = "^0.6.0"
 libc = "^0.2.62"
 
 [build-dependencies]

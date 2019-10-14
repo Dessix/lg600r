@@ -80,48 +80,80 @@ fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
 fn parse_config_from_toml_string(
     tomlstr: &String,
 ) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
-    // TODO: This is a total mess; figure out toml/serde support
     use toml::Value as Toml;
     let t: Toml = toml::from_str(tomlstr)?;
     let tbl = t.as_table().unwrap();
+    #[derive(Debug)]
+    struct BindingWrapper(BindingType);
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    impl serde::Serialize for BindingWrapper {
+        fn serialize<S>(
+            &self,
+            serializer: S,
+        ) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+        where
+            S: Serializer,
+        {
+            let BindingWrapper(inner) = self;
+            match inner {
+                BindingType::Command(cmd) => {
+                    //                    Serialize::serialize()
+                    unimplemented!()
+                }
+                _ => unimplemented!(),
+            }
+        }
+    }
+    #[derive(Serialize, Deserialize, Debug)]
+    struct IntermedConfig {
+        bindings: std::collections::BTreeMap<String, serde_value::Value>,
+        scancodes: std::collections::btree_map::BTreeMap<serde_value::Value, serde_value::Value>,
+    }
     let mut cfg = Configuration {
         bindings: vec![],
         scancodes: vec![],
     };
-    for (k, v) in tbl {
-        match k.as_ref() {
-            "bindings" => {
-                // This could occur in the file multiple times-- but why?
-                if let Toml::Table(items) = v {
-                    let binditems: Vec<(u32, BindingType)> = items
-                        .into_iter()
-                        .map(|(x, y)| parse_binding(&x, y))
-                        .collect();
-                    for bindpair in binditems {
-                        cfg.bindings.push(bindpair)
+    let icfg: IntermedConfig = toml::from_str(tomlstr)?;
+    println!("config.bindings: {:#?}", &icfg.bindings);
+    for (key, val) in &icfg.bindings {
+        cfg.bindings.push(parse_binding(
+            key,
+            &match val {
+                serde_value::Value::String(s) => toml::Value::String(s.to_string()),
+                serde_value::Value::Map(m) => {
+                    let mut s = toml::map::Map::new();
+                    for (k, v) in m {
+                        s.insert(
+                            k.clone().deserialize_into().unwrap(),
+                            v.clone().deserialize_into().unwrap(),
+                        );
                     }
-                } else {
-                    assert!(false);
+                    toml::Value::Table(s)
                 }
-            }
-            "scancodes" => {
-                if let Toml::Table(items) = v {
-                    let scancodepairs: Vec<(u32, u32)> = items
-                        .into_iter()
-                        .map(|(x, y): (&String, &toml::Value)| {
-                            (x.parse::<u32>().unwrap(), y.as_integer().unwrap() as u32)
-                        })
-                        .collect();
-                    for codepair in scancodepairs {
-                        cfg.scancodes.push(codepair)
-                    }
-                } else {
-                    assert!(false);
+                v => {
+                    unimplemented!("{:?} is not implemented", v);
                 }
-            }
-            _ => (), // ignore other tokens
+            },
+        ));
+    }
+    fn sval_as_u32(val: &serde_value::Value) -> Option<u32> {
+        match val {
+            serde_value::Value::String(s) => Some(s.parse::<u32>().unwrap()),
+            serde_value::Value::I8(i) => Some((*i) as u32),
+            serde_value::Value::I16(i) => Some((*i) as u32),
+            serde_value::Value::I32(i) => Some((*i) as u32),
+            serde_value::Value::I64(i) => Some((*i) as u32),
+            v => None,
         }
     }
+    cfg.scancodes
+        .extend(icfg.scancodes.iter().map(|(key, value)| {
+            (
+                sval_as_u32(key).expect("Invalid type in scancode key"),
+                sval_as_u32(value).expect("Invalid type in scancode value"),
+            )
+        }));
+
     Ok(cfg)
 }
 
@@ -134,6 +166,40 @@ fn test_parse_config() -> () {
         09 = "wooo"
         113 = { type = "mouse", button = 9 }
         115 = { type = "keyboard", key = "F1" }
+
+        [scancodes]
+        # non-shifted keys
+        007 = 8
+        008 = 26
+        009 = 30
+        010 = 31
+        011 = 32
+        012 = 33
+        013 = 34
+        014 = 35
+        015 = 36
+        016 = 37
+        017 = 38
+        018 = 39
+        019 = 45
+        020 = 46
+        # g-shifted keys
+        104 = 80 # G-shift Backward
+        105 = 79 # G-shift Forward
+        107 = 81
+        108 = 82
+        109 = 4
+        110 = 17
+        111 = 12
+        112 = 11
+        113 = 7
+        114 = 28
+        115 = 24
+        116 = 13
+        117 = 10
+        118 = 6
+        119 = 25
+        120 = 19
     "#;
     let res = parse_config_from_toml_string(&String::from(input)).expect("Must pass");
     assert_eq!(

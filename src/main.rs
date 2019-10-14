@@ -11,11 +11,11 @@ extern crate serde_derive;
 extern crate libc;
 
 use crate::config::BindingType;
+use crate::xdo::KeyboardControllable;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use crate::xdo::KeyboardControllable;
 
 mod config;
 mod keyboard_watcher;
