@@ -47,30 +47,52 @@ pub enum BindingType {
     KeySequence(String),
 }
 
-fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
+fn sval_as_uint(val: &serde_value::Value) -> Option<u64> {
+    match val {
+        serde_value::Value::String(s) => Some(s.parse::<u64>().unwrap()),
+        serde_value::Value::I8(i) => Some((*i) as u64),
+        serde_value::Value::I16(i) => Some((*i) as u64),
+        serde_value::Value::I32(i) => Some((*i) as u64),
+        serde_value::Value::I64(i) => Some((*i) as u64),
+        v => None,
+    }
+}
+
+fn parse_binding(gkey: &String, token: &serde_value::Value) -> (u32, BindingType) {
     let gkey = gkey.as_str().parse::<u32>().unwrap();
+    use serde_value::Value;
+    use std::convert::{TryFrom, TryInto};
     let binding = match token {
-        toml::value::Value::String(s) => BindingType::Command(s.clone()),
-        toml::value::Value::Table(table) => match table.get("type").unwrap().as_str().unwrap() {
-            "mouse" => {
-                let button = table.get("button").unwrap().as_integer().unwrap();
-                BindingType::EmulateMouse(button as u8)
-            }
-            "keyboard" => {
-                let source_str = table.get("key").unwrap().as_str().unwrap();
-                use std::str::FromStr;
-                let key: Result<xdo::Key, _> = FromStr::from_str(source_str);
-                let key = match key {
-                    Ok(key) => key,
-                    Err(e) => {
-                        eprintln!("Failed to parse {} as a key; err: {}", source_str, &e);
-                        panic!()
+        Value::String(s) => BindingType::Command(s.clone()),
+        Value::Map(table) => match table.get(&Value::String("type".to_string())).unwrap() {
+            Value::String(s) => {
+                match s.as_ref() {
+                    "mouse" => {
+                        let val_at_button = table.get(&Value::String("button".to_string())).unwrap();
+                        let btn: u8 =
+                            sval_as_uint(val_at_button)
+                                .map(|x| x as u8)
+                                .expect("Invalid button value");
+                        BindingType::EmulateMouse(btn)
                     }
-                };
-                BindingType::EmulateKey(key)
-            }
+                    "keyboard" => {
+                        if let Value::String(source_str) = table.get(&Value::String("key".to_string())).unwrap() {
+                            use std::str::FromStr;
+                            let key: Result<xdo::Key, _> = FromStr::from_str(&source_str);
+                            let key = match key {
+                                Ok(key) => key,
+                                Err(e) => panic!("Failed to parse {} as a key; err: {}", source_str, &e)
+                            };
+                            BindingType::EmulateKey(key)
+                        } else {
+                            panic!("Key was a non-string value")
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            },
             _ => unreachable!(),
-        },
+        }
         _ => unreachable!(),
     };
 
@@ -80,9 +102,6 @@ fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
 fn parse_config_from_toml_string(
     tomlstr: &String,
 ) -> Result<Configuration, Box<dyn (::std::error::Error)>> {
-    use toml::Value as Toml;
-    let t: Toml = toml::from_str(tomlstr)?;
-    let tbl = t.as_table().unwrap();
     #[derive(Debug)]
     struct BindingWrapper(BindingType);
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -104,57 +123,34 @@ fn parse_config_from_toml_string(
             }
         }
     }
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Deserialize)]
     struct IntermedConfig {
         bindings: std::collections::BTreeMap<String, serde_value::Value>,
         scancodes: std::collections::btree_map::BTreeMap<serde_value::Value, serde_value::Value>,
     }
-    let mut cfg = Configuration {
-        bindings: vec![],
-        scancodes: vec![],
-    };
     let icfg: IntermedConfig = toml::from_str(tomlstr)?;
     println!("config.bindings: {:#?}", &icfg.bindings);
-    for (key, val) in &icfg.bindings {
-        cfg.bindings.push(parse_binding(
-            key,
-            &match val {
-                serde_value::Value::String(s) => toml::Value::String(s.to_string()),
-                serde_value::Value::Map(m) => {
-                    let mut s = toml::map::Map::new();
-                    for (k, v) in m {
-                        s.insert(
-                            k.clone().deserialize_into().unwrap(),
-                            v.clone().deserialize_into().unwrap(),
-                        );
-                    }
-                    toml::Value::Table(s)
-                }
-                v => {
-                    unimplemented!("{:?} is not implemented", v);
-                }
-            },
-        ));
-    }
-    fn sval_as_u32(val: &serde_value::Value) -> Option<u32> {
-        match val {
-            serde_value::Value::String(s) => Some(s.parse::<u32>().unwrap()),
-            serde_value::Value::I8(i) => Some((*i) as u32),
-            serde_value::Value::I16(i) => Some((*i) as u32),
-            serde_value::Value::I32(i) => Some((*i) as u32),
-            serde_value::Value::I64(i) => Some((*i) as u32),
-            v => None,
-        }
-    }
-    cfg.scancodes
-        .extend(icfg.scancodes.iter().map(|(key, value)| {
-            (
-                sval_as_u32(key).expect("Invalid type in scancode key"),
-                sval_as_u32(value).expect("Invalid type in scancode value"),
-            )
-        }));
+    let bindings: Vec<(u32, BindingType)> = icfg
+        .bindings
+        .iter()
+        .map(|(key, val)| parse_binding(key, val))
+        .collect();
 
-    Ok(cfg)
+    let scancodes: Vec<(u32, u32)> = icfg
+        .scancodes
+        .iter()
+        .map(|(key, value)| {
+            (
+                sval_as_uint(key).map(|x| x as u32).expect("Invalid type in scancode key"),
+                sval_as_uint(value).map(|x| x as u32).expect("Invalid type in scancode value"),
+            )
+        })
+        .collect();
+
+    Ok(Configuration {
+        bindings,
+        scancodes,
+    })
 }
 
 #[test]
