@@ -58,7 +58,8 @@ fn parse_binding(gkey: &String, token: &toml::Value) -> (u32, BindingType) {
             }
             "keyboard" => {
                 let source_str = table.get("key").unwrap().as_str().unwrap();
-                let key: Result<xdo::Key, _> = std::str::FromStr::from_str(source_str);
+                use std::str::FromStr;
+                let key: Result<xdo::Key, _> = FromStr::from_str(source_str);
                 let key = match key {
                     Ok(key) => key,
                     Err(e) => {
@@ -142,7 +143,7 @@ fn test_parse_config() -> () {
     assert_eq!(res.bindings[1], (113u32, BindingType::EmulateMouse(9)));
     assert_eq!(
         res.bindings[2],
-        (115u32, BindingType::EmulateKey(::xdo::Key::F1))
+        (115u32, BindingType::EmulateKey(crate::xdo::Key::F1))
     );
     assert_eq!(
         res.bindings[3],

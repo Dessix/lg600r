@@ -25,13 +25,13 @@ use libc;
 
 use super::{Key, KeyboardControllable};
 
-use self::libc::{c_char, c_int, c_void, useconds_t};
+use libc::{c_char, c_int, useconds_t};
 use std::{borrow::Cow, ffi::CString, ptr};
 
 const CURRENT_WINDOW: c_int = 0;
 const DEFAULT_DELAY: u64 = 12000;
 type Window = c_int;
-type Xdo = *const c_void;
+type Xdo = *const libc::c_void;
 
 #[link(name = "xdo")]
 extern "C" {
@@ -180,63 +180,12 @@ impl Drop for XdoManaged {
     }
 }
 
-fn keysequence<'a>(key: Key) -> Cow<'a, str> {
+fn keysequence<'a>(key: Key) -> Cow<'a, String> {
     if let Key::Layout(c) = key {
         return Cow::Owned(format!("U{:X}", c as u32));
     }
-    #[allow(deprecated)]
-    // I mean duh, we still need to support deprecated keys until they're removed
-    Cow::Borrowed(match key {
-        Key::Alt => "Alt",
-        Key::Backspace => "BackSpace",
-        Key::CapsLock => "CapsLock",
-        Key::Control => "Control",
-        Key::Delete => "Delete",
-        Key::DownArrow => "Down",
-        Key::End => "End",
-        Key::Escape => "Escape",
-        Key::F1 => "F1",
-        Key::F10 => "F10",
-        Key::F11 => "F11",
-        Key::F12 => "F12",
-        Key::F13 => "F13",
-        Key::F14 => "F14",
-        Key::F15 => "F15",
-        Key::F16 => "F16",
-        Key::F17 => "F17",
-        Key::F18 => "F18",
-        Key::F19 => "F19",
-        Key::F20 => "F20",
-        Key::F21 => "F21",
-        Key::F22 => "F22",
-        Key::F23 => "F23",
-        Key::F24 => "F24",
-        Key::F2 => "F2",
-        Key::F3 => "F3",
-        Key::F4 => "F4",
-        Key::F5 => "F5",
-        Key::F6 => "F6",
-        Key::F7 => "F7",
-        Key::F8 => "F8",
-        Key::F9 => "F9",
-        Key::Home => "Home",
-        Key::Layout(_) => unreachable!(),
-        Key::LeftArrow => "Left",
-        Key::Option => "Option",
-        Key::PageDown => "PageDown",
-        Key::PageUp => "PageUp",
-        Key::Raw(_) => unimplemented!(),
-        Key::Return => "Return",
-        Key::RightArrow => "Right",
-        Key::Shift => "Shift",
-        Key::Space => "space",
-        Key::Tab => "Tab",
-        Key::UpArrow => "Up",
 
-        Key::Meta => "Meta",
-        Key::Super => "Super",
-        Key::Hyper => "Hyper",
-    })
+    Cow::Owned(key.to_string())
 }
 impl KeyboardControllable for XdoManaged {
     fn key_sequence(&mut self, sequence: &str) {
@@ -251,7 +200,7 @@ impl KeyboardControllable for XdoManaged {
         }
     }
     fn key_down(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
+        let string = CString::new(&*keysequence(key).as_str()).unwrap();
         unsafe {
             xdo_send_keysequence_window_down(
                 self.xdo,
@@ -262,7 +211,7 @@ impl KeyboardControllable for XdoManaged {
         }
     }
     fn key_up(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
+        let string = CString::new(&*keysequence(key).as_str()).unwrap();
         unsafe {
             xdo_send_keysequence_window_up(
                 self.xdo,
@@ -273,7 +222,7 @@ impl KeyboardControllable for XdoManaged {
         }
     }
     fn key_click(&mut self, key: Key) {
-        let string = CString::new(&*keysequence(key)).unwrap();
+        let string = CString::new(&*keysequence(key).as_str()).unwrap();
         unsafe {
             xdo_send_keysequence_window(
                 self.xdo,

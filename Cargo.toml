@@ -2,6 +2,7 @@
 name = "lg600r"
 version = "0.1.0"
 authors = ["Zoey <Dessix@Dessix.net>"]
+edition = "2018"
 
 [dependencies]
 dirs = "^2.0.2"
@@ -10,9 +11,8 @@ toml = "^0.5.3"
 xdg = "^2.2"
 serde = "^1.0.101"
 serde_derive = "^1.0.101"
+serde_json = "^1.0.41"
 libc = "^0.2.62"
-strum = "^0.16.0"
-strum_macros = "^0.16.0"
 
 [build-dependencies]
 bindgen = "~0.51.1"

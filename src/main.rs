@@ -9,16 +9,13 @@ extern crate xdg;
 #[macro_use]
 extern crate serde_derive;
 extern crate libc;
-extern crate strum;
-#[macro_use]
-extern crate strum_macros;
 
-use config::BindingType;
+use crate::config::BindingType;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use xdo::KeyboardControllable;
+use crate::xdo::KeyboardControllable;
 
 mod config;
 mod keyboard_watcher;
@@ -80,7 +77,7 @@ fn run(
         })
         .and_then(|mut watcher| {
             println!("G600 controller started successfully.\n");
-            use xdo::managed as xmanaged;
+            use crate::xdo::managed as xmanaged;
             let mut xdm = xmanaged::XdoManaged::default();
             watcher.watch(
                 |scancode, pressed| {
@@ -149,7 +146,7 @@ fn build_default_commands() -> std::collections::HashMap<u32, BindingType> {
 fn run_with_dotfile(path: ::std::path::PathBuf) -> Result<(), Box<dyn (::std::error::Error)>> {
     assert!(path.exists());
 
-    ::config::load_configuration_from_dotfile(&path)
+    crate::config::load_configuration_from_dotfile(&path)
         .map(
             |config::Configuration {
                  bindings: dotcommands,

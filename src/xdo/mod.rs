@@ -23,7 +23,7 @@
 
 pub mod managed;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, EnumString, ToString)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Key {
     /// alt key on Linux and Windows (option key on macOS)
     Alt,
@@ -95,8 +95,14 @@ pub enum Key {
     LeftArrow,
     /// meta key (also known as "windows", "super", and "command")
     Meta,
-    Super,
-    Hyper,
+    #[serde(rename="Super_L", alias="SuperL", alias="Super")]
+    SuperL,
+    #[serde(rename="Super_R", alias="SuperR")]
+    SuperR,
+    #[serde(rename="Hyper_L", alias="HyperL", alias="Hyper")]
+    HyperL,
+    #[serde(rename="Hyper_R", alias="HyperR")]
+    HyperR,
     /// option key on macOS (alt key on Linux and Windows)
     Option,
     /// page down key
@@ -119,6 +125,37 @@ pub enum Key {
     Layout(char),
     /// raw keycode eg 0x38
     Raw(u16),
+}
+
+mod formatting_impls {
+    use std::fmt::{Display, Debug, Formatter, Error};
+    use super::Key;
+
+    impl Display for Key {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+            Debug::fmt(self, f)
+        }
+    }
+
+    impl Debug for Key {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+            serde_json::to_value(self)
+                .map_err(|_| std::fmt::Error)
+                .and_then(|s| f.write_str(&s.as_str().unwrap()))
+        }
+    }
+
+    use std::str::FromStr;
+
+    impl FromStr for Key {
+        type Err = Box<dyn std::error::Error>;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            serde_json::from_value(serde_json::Value::String(s.to_string()))
+                .map_err(|e| e.into())
+        }
+    }
+
 }
 
 pub trait KeyboardControllable {

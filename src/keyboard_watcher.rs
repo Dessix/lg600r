@@ -1,4 +1,4 @@
-use linput;
+use crate::linput;
 use std::cell::RefCell;
 use std::fs::File;
 use std::os::unix::prelude::AsRawFd;
