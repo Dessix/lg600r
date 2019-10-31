@@ -3,28 +3,40 @@ use std::cell::RefCell;
 use std::fs::File;
 use std::os::unix::prelude::AsRawFd;
 use std::{mem, slice};
+use evdev_rs::{Device, ReadStatus, ReadFlag, InputEvent};
+use evdev_rs::enums::{EventType, BusType, EventCode, EV_MSC};
 
 pub struct KeyboardWatcher {
-    stream_handle: File,
+    device: Device,
 }
 
 impl KeyboardWatcher {
     pub fn create(f: File) -> Result<KeyboardWatcher, String> {
-        {
-            let res;
-            unsafe {
-                let fd: std::os::raw::c_int = f.as_raw_fd();
-                res = linput::ioctl(fd, linput::_EVIOCGRAB, 1);
-                // debug_assert_eq!(res, 0);
-            }
-            if res != 0 {
-                return Err(
-                    format!("Failed to EVIOCGRAB handle to handle; code was {}", res).to_string(),
-                );
-            }
-        }
+        let mut d = Device::new().expect("Libevdev must be installed and available");
+        d.set_fd(f).expect("Expected to mount device successfully");
+        d.grab(evdev_rs::GrabMode::Grab).expect("Failed to EVIOCGRAB device");
+        Ok(KeyboardWatcher { device: d })
+    }
 
-        Ok(KeyboardWatcher { stream_handle: f })
+    fn next_event_matching<C: (Fn(&InputEvent)->bool), B: (Fn(&InputEvent)->bool)>(
+        device: &mut Device,
+        choose_on: C, bail_on: B
+    ) -> Result<InputEvent, InputEvent> {
+        let read_flags = evdev_rs::ReadFlag::NORMAL | evdev_rs::ReadFlag::BLOCKING;
+        loop {
+            match device.next_event(read_flags) {
+                Ok((_, ev)) if choose_on(&ev) => {
+                    return Ok(ev)
+                }
+                Ok((_, bail)) if bail_on(&bail) => {
+                    return Err(bail)
+                }
+                Ok((_, _ev)) => (),
+                Err(e) => {
+                    println!("Error encountered: {}", e);
+                }
+            };
+        }
     }
 
     pub fn watch<F: FnMut(u32, bool) -> ()>(
@@ -34,33 +46,55 @@ impl KeyboardWatcher {
     ) -> Result<(), Box<dyn (::std::error::Error)>> {
         use std::io::prelude::*;
         use std::io::BufReader;
-        let event_size = mem::size_of::<linput::input_event>();
-        let mut fb = BufReader::with_capacity(64 * event_size, &mut self.stream_handle);
 
+        let mut bailed_scan = None;
         loop {
-            let mut ev: linput::input_event = unsafe { mem::zeroed() };
-            let mut ev2: linput::input_event = unsafe { mem::zeroed() };
-            unsafe {
-                let event_slice =
-                    slice::from_raw_parts_mut(&mut ev as *mut _ as *mut u8, event_size);
-                fb.read_exact(event_slice)
-            }?;
-            // Filter to type: EV_MSC, code: MSC_SCAN
-            // The following entry after MSC_SCAN is guaranteed the key event in question
-            if ev.type_ != 4 || ev.code != 4 {
-                continue;
-            }
-            unsafe {
-                let event_slice2 =
-                    slice::from_raw_parts_mut(&mut ev2 as *mut _ as *mut u8, event_size);
-                fb.read_exact(event_slice2)
-            }?;
-            //            println!("\n{:?}\n  {:?}", &ev, &ev2);
-            let pressed = ev2.value != 0;
-            let scancode = (ev.value & (!0x70000)) as u32;
+            let choose_scan_ev = |ev: &InputEvent| ev.is_code(&EventCode::EV_MSC(EV_MSC::MSC_SCAN));
+            let choose_key_ev = |ev: &InputEvent| ev.is_type(&EventType::EV_KEY);
+            let scan = match bailed_scan {
+                Some(bailed) => {
+                    bailed
+                }
+                None => {
+                    let scan_or_bail = Self::next_event_matching(
+                        &mut self.device,
+                        choose_scan_ev,
+                        choose_key_ev,
+                    );
+                    match scan_or_bail {
+                        Err(bail) => {
+                            println ! ("Key event / Scans detected out of order from:\n{:#?}", bail);
+                            println !(" ... Skipping to next scan...");
+                            continue;
+                        }
+                        Ok(scan) => scan
+                    }
+                }
+            };
+            let scancode = (scan.value & (!0x70000));
+            //println!("Scan Event encountered: {:#?} - scancode: {:#?}", &scan, scancode);
+            let key_or_bail = Self::next_event_matching(
+                &mut self.device,
+                choose_key_ev,
+                choose_scan_ev,
+            );
 
-            //println!("Read {:#?} with scancode {}", ev, scancode);
-            callback(scancode, pressed);
+            let key = match key_or_bail {
+                Err(bail) => {
+                    println!("Key event / Scans detected out of order from:\n{:#?}", bail);
+                    println!(" ... Saving as next scan...");
+                    bailed_scan = Some(bail);
+                    continue;
+                }
+                Ok(scan) => {
+                    bailed_scan = None;
+                    scan
+                }
+            };
+
+            let pressed = key.value != 0;
+            callback(scancode as u32, pressed);
+
             if *exit.borrow() {
                 break;
             }
@@ -71,6 +105,5 @@ impl KeyboardWatcher {
 
 impl Drop for KeyboardWatcher {
     fn drop(&mut self) {
-        unimplemented!()
     }
 }
