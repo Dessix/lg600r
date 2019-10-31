@@ -65,34 +65,35 @@ fn parse_binding(gkey: &String, token: &serde_value::Value) -> (u32, BindingType
     let binding = match token {
         Value::String(s) => BindingType::Command(s.clone()),
         Value::Map(table) => match table.get(&Value::String("type".to_string())).unwrap() {
-            Value::String(s) => {
-                match s.as_ref() {
-                    "mouse" => {
-                        let val_at_button = table.get(&Value::String("button".to_string())).unwrap();
-                        let btn: u8 =
-                            sval_as_uint(val_at_button)
-                                .map(|x| x as u8)
-                                .expect("Invalid button value");
-                        BindingType::EmulateMouse(btn)
-                    }
-                    "keyboard" => {
-                        if let Value::String(source_str) = table.get(&Value::String("key".to_string())).unwrap() {
-                            use std::str::FromStr;
-                            let key: Result<xdo::Key, _> = FromStr::from_str(&source_str);
-                            let key = match key {
-                                Ok(key) => key,
-                                Err(e) => panic!("Failed to parse {} as a key; err: {}", source_str, &e)
-                            };
-                            BindingType::EmulateKey(key)
-                        } else {
-                            panic!("Key was a non-string value")
-                        }
-                    }
-                    _ => unreachable!(),
+            Value::String(s) => match s.as_ref() {
+                "mouse" => {
+                    let val_at_button = table.get(&Value::String("button".to_string())).unwrap();
+                    let btn: u8 = sval_as_uint(val_at_button)
+                        .map(|x| x as u8)
+                        .expect("Invalid button value");
+                    BindingType::EmulateMouse(btn)
                 }
+                "keyboard" => {
+                    if let Value::String(source_str) =
+                        table.get(&Value::String("key".to_string())).unwrap()
+                    {
+                        use std::str::FromStr;
+                        let key: Result<xdo::Key, _> = FromStr::from_str(&source_str);
+                        let key = match key {
+                            Ok(key) => key,
+                            Err(e) => {
+                                panic!("Failed to parse {} as a key; err: {}", source_str, &e)
+                            }
+                        };
+                        BindingType::EmulateKey(key)
+                    } else {
+                        panic!("Key was a non-string value")
+                    }
+                }
+                _ => unreachable!(),
             },
             _ => unreachable!(),
-        }
+        },
         _ => unreachable!(),
     };
 
@@ -141,8 +142,12 @@ fn parse_config_from_toml_string(
         .iter()
         .map(|(key, value)| {
             (
-                sval_as_uint(key).map(|x| x as u32).expect("Invalid type in scancode key"),
-                sval_as_uint(value).map(|x| x as u32).expect("Invalid type in scancode value"),
+                sval_as_uint(key)
+                    .map(|x| x as u32)
+                    .expect("Invalid type in scancode key"),
+                sval_as_uint(value)
+                    .map(|x| x as u32)
+                    .expect("Invalid type in scancode value"),
             )
         })
         .collect();
